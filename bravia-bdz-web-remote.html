@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BRAVIA / BDZ Web Remote</title>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#141a22; --panel2:#1b232d; --line:#26313d;
+  --fg:#e6edf3; --dim:#8b98a5; --accent:#3b82f6; --accent2:#1d4ed8;
+  --ok:#22c55e; --ng:#ef4444; --warn:#f59e0b;
+  --r:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;}
+body{display:flex;flex-direction:column;min-height:100vh;}
+.wrap{width:100%;max-width:520px;margin:0 auto;padding:10px 12px 0;flex:1;display:flex;flex-direction:column;}
+
+header{display:flex;align-items:center;gap:8px;padding:4px 0 10px;}
+header h1{font-size:15px;margin:0;font-weight:650;letter-spacing:.02em;flex:1;}
+.pill{font-size:11px;padding:3px 8px;border-radius:999px;background:var(--panel2);
+  border:1px solid var(--line);color:var(--dim);white-space:nowrap;}
+.pill.on{color:var(--ok);border-color:#1e4429}
+.pill.off{color:var(--warn);border-color:#4a3a15}
+.pill.err{color:var(--ng);border-color:#4a1f1f}
+.iconbtn{background:var(--panel2);border:1px solid var(--line);color:var(--fg);
+  border-radius:9px;padding:6px 10px;font-size:12px;cursor:pointer;}
+.iconbtn:active{transform:scale(.96)}
+
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--panel);
+  padding:5px;border-radius:var(--r);border:1px solid var(--line);}
+.tabs button{background:transparent;border:0;color:var(--dim);padding:9px 4px;border-radius:9px;
+  font-size:12px;font-weight:600;cursor:pointer;line-height:1.35;}
+.tabs button small{display:block;font-size:10px;font-weight:400;opacity:.75}
+.tabs button.sel{background:var(--accent);color:#fff;}
+
+.panel{padding:12px 0 4px;display:none}
+.panel.sel{display:block}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:10px;margin-bottom:10px;}
+.card h2{font-size:11px;margin:0 0 8px;color:var(--dim);font-weight:600;letter-spacing:.08em;}
+
+.grid{display:grid;gap:8px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g5{grid-template-columns:repeat(5,1fr)}
+
+button.k{background:var(--panel2);border:1px solid var(--line);color:var(--fg);
+  border-radius:10px;padding:13px 4px;font-size:13px;font-weight:600;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:background .08s,transform .06s;}
+button.k:hover{background:#232d39}
+button.k:active{transform:scale(.95);background:var(--accent2)}
+button.k.na{opacity:.32;cursor:not-allowed}
+button.k.accent{background:var(--accent);border-color:var(--accent);color:#fff}
+button.k.danger{background:#3a1a1a;border-color:#5a2626;color:#ffb4b4}
+button.k.sm{padding:9px 4px;font-size:12px}
+button.k .sub{display:block;font-size:9px;font-weight:400;color:var(--dim);margin-top:2px}
+
+.dpad{width:min(272px,100%);margin:0 auto;display:grid;
+  grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:8px;}
+.dpad button{aspect-ratio:1;font-size:19px;padding:0}
+.dpad .ok{border-radius:50%;background:var(--accent);border-color:var(--accent);color:#fff;font-size:13px}
+
+.note{font-size:11px;color:var(--dim);line-height:1.6;margin:0}
+.note b{color:var(--fg);font-weight:600}
+.warnbox{background:#2a2113;border:1px solid #4a3a15;color:#ffd79a;font-size:11px;
+  padding:8px 10px;border-radius:9px;line-height:1.6;margin-bottom:10px;}
+
+/* log */
+.logwrap{background:#070a0e;border-top:1px solid var(--line);margin-top:auto;}
+.logbar{display:flex;align-items:center;gap:8px;padding:6px 12px;max-width:520px;margin:0 auto;}
+.logbar span{font-size:11px;color:var(--dim);flex:1}
+.logbar button{background:transparent;border:1px solid var(--line);color:var(--dim);
+  font-size:11px;border-radius:7px;padding:3px 8px;cursor:pointer}
+#log{max-width:520px;margin:0 auto;height:132px;overflow-y:auto;padding:0 12px 10px;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;line-height:1.7;}
+#log div{white-space:pre-wrap;word-break:break-all}
+.l-ok{color:#7ee2a8} .l-ng{color:#ff9c9c} .l-wn{color:#ffcf7a} .l-in{color:#8b98a5}
+
+/* modal */
+.modal{position:fixed;inset:0;background:#06090d;display:none;z-index:50;
+  overflow-y:auto;padding:20px 12px;}
+.testout{background:#070a0e;border:1px solid var(--line);border-radius:8px;margin-top:8px;
+  padding:8px 9px;max-height:180px;overflow-y:auto;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;line-height:1.7;}
+.testout:empty{display:none}
+.testout div{white-space:pre-wrap;word-break:break-all}
+.modal.open{display:block}
+.sheet{max-width:520px;margin:0 auto;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:14px;}
+.sheet h2{font-size:14px;margin:0 0 12px}
+.sheet h3{font-size:11px;color:var(--dim);margin:16px 0 6px;letter-spacing:.06em;
+  border-top:1px solid var(--line);padding-top:12px}
+.sheet h3:first-of-type{border-top:0;padding-top:0;margin-top:4px}
+label{display:block;font-size:11px;color:var(--dim);margin:8px 0 3px}
+input[type=text],input[type=number],select,textarea{width:100%;background:#0c1117;color:var(--fg);
+  border:1px solid var(--line);border-radius:8px;padding:8px 9px;font-size:13px;font-family:inherit}
+input:focus,select:focus{outline:1px solid var(--accent);border-color:var(--accent)}
+.row{display:flex;gap:8px} .row>*{flex:1}
+.chk{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--fg);margin:9px 0}
+.chk input{width:16px;height:16px;accent-color:var(--accent)}
+pre.code{background:#070a0e;border:1px solid var(--line);border-radius:8px;padding:9px;
+  font-size:10px;line-height:1.55;overflow-x:auto;color:#c9d6e2;max-height:220px}
+table.codes{width:100%;border-collapse:collapse;font-size:11px}
+table.codes td{border-bottom:1px solid var(--line);padding:4px 3px}
+table.codes td:first-child{color:var(--dim);white-space:nowrap;width:34%}
+table.codes input{font-size:10px;padding:4px 5px;font-family:ui-monospace,monospace}
+
+.macro-row{display:grid;grid-template-columns:1fr 84px 34px;gap:6px;margin-bottom:6px}
+.macro-row select,.macro-row input{font-size:12px;padding:6px 7px}
+.macro-row button{background:#3a1a1a;border:1px solid #5a2626;color:#ffb4b4;border-radius:8px;cursor:pointer}
+.k.col-b{background:#1e3a8a;border-color:#2c52b8;color:#dbe6ff}
+.k.col-r{background:#7f1d1d;border-color:#a83232;color:#ffdede}
+.k.col-g{background:#14532d;border-color:#2a7f4a;color:#d8ffe6}
+.k.col-y{background:#713f12;border-color:#a9761f;color:#ffeccc}
+.k br{line-height:1.25}
+.sp{height:10px}
+.sp8{height:8px}
+details.card summary{list-style:none}
+details.card summary::-webkit-details-marker{display:none}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>BRAVIA / BDZ Remote</h1>
+    <span class="pill" id="curPill">表示中: 不明</span>
+    <span class="pill" id="pwPill">状態: 未確認</span>
+    <button class="iconbtn" id="btnSettings">設定</button>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+  <div id="panels"></div>
+</div>
+
+<div class="logwrap">
+  <div class="logbar">
+    <span>ログ</span>
+    <button id="btnLogCopy">コピー</button>
+    <button id="btnLogClear">クリア</button>
+  </div>
+  <div id="log"></div>
+</div>
+
+<!-- ===== 設定モーダル ===== -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h2>設定</h2>
+
+    <h3>TV (BRAVIA KJ-65Z9D)</h3>
+    <label>TV IPアドレス</label>
+    <input type="text" id="cfgIp" placeholder="192.168.1.10" inputmode="decimal">
+    <label>PSK (事前共有キー)</label>
+    <input type="text" id="cfgPsk" placeholder="TVの「IPコントロール」で設定した値">
+    <label>IRCCパス</label>
+    <input type="text" id="cfgPath" placeholder="/sony/ircc">
+    <div class="row">
+      <div><label>通信方式</label>
+        <select id="cfgMode"><option value="direct">直接 (direct)</option><option value="proxy">プロキシ経由 (proxy)</option></select>
+      </div>
+      <div><label>送信間隔 ms</label><input type="number" id="cfgInterval" min="0" max="2000"></div>
+    </div>
+    <label>プロキシURL (任意 / 空ならプロキシ方式は使えません)</label>
+    <input type="text" id="cfgProxy" placeholder="http://127.0.0.1:8099/">
+    <p class="note" style="margin-top:6px"><b>実測(2026-09-12)：このBRAVIAはCORS対応済みで、プロキシは不要です。</b><br>
+      <code>Access-Control-Allow-Origin: null</code> / <code>Allow-Headers: content-type,soapaction,x-auth-psk</code> を返すため、
+      <code>file://</code> から直接通信できます。<br>
+      プロキシは「プレフィックス連結方式」：最終URL = プロキシURL + <code>http://TV_IP/sony/ircc</code></p>
+    <div class="row" style="margin-top:10px">
+      <button class="k accent sm" id="btnTest">接続テスト</button>
+      <button class="k sm" id="btnSync">コード表を同期</button>
+    </div>
+    <div class="testout" id="testOut"></div>
+
+    <h3>BDZ-FBW1100</h3>
+    <div class="row">
+      <div><label>HDMI入力</label>
+        <select id="fbwHdmi"><option>Hdmi1</option><option>Hdmi2</option><option>Hdmi3</option><option>Hdmi4</option></select></div>
+      <div><label>IPアドレス</label><input type="text" id="fbwIp" placeholder="192.168.0.218"></div>
+    </div>
+    <label>MACアドレス (WoL用・任意)</label>
+    <input type="text" id="fbwMac" placeholder="XX:XX:XX:XX:XX:XX">
+    <label>CEC機器URI（機器選択に使用）</label>
+    <input type="text" id="fbwCec" placeholder="extInput:cec?type=recorder&amp;port=2&amp;logicalAddr=1">
+
+    <h3>BDZ-EW500</h3>
+    <div class="row">
+      <div><label>HDMI入力</label>
+        <select id="ewHdmi"><option>Hdmi1</option><option>Hdmi2</option><option>Hdmi3</option><option>Hdmi4</option></select></div>
+      <div><label>IPアドレス</label><input type="text" id="ewIp" placeholder="192.168.0.213"></div>
+    </div>
+    <label>MACアドレス (WoL用・任意)</label>
+    <input type="text" id="ewMac" placeholder="XX:XX:XX:XX:XX:XX">
+    <label>CEC機器URI（機器選択に使用）</label>
+    <input type="text" id="ewCec" placeholder="extInput:cec?type=recorder&amp;port=3&amp;logicalAddr=2">
+
+    <h3>接続機器の検出</h3>
+    <p class="note">TVが列挙しているCEC機器と外部入力を一覧表示します。
+      レコーダーを買い替えたり配線を変えた場合は、ここで新しいURIを確認して上の欄に入れてください。</p>
+    <button class="k sm" id="btnDetect" style="margin-top:8px">接続機器を検出</button>
+
+    <h3>BDZ 直接ネットワーク制御の診断</h3>
+    <p class="note">実測(2026-09-12)：両レコーダーは <b>IRCCを持たず</b>、port 64220 に
+      <code>X_PvrControl</code> サービス（<code>X_InputRemoteKey</code> / <code>X_PowerControl</code> 等）を公開しています。
+      ただし<b>レコーダー側で「リモート機器登録」をしていない端末からは全て HTTP 403</b> になります。
+      登録後に403が解消するかをこのボタンで確認できます（キー送信はしません）。</p>
+    <button class="k sm" id="btnPvr">X_PvrControl 疎通を診断</button>
+
+    <h3>Wake on LAN</h3>
+    <p class="note">ブラウザのJavaScriptからUDPパケットは送れません。このアプリ単体でWoLは実行できません。<br>
+      下のWoLエンドポイントを設定した場合のみ、そこへ <code>?mac=...</code> を付けてGETします。</p>
+    <label>WoLエンドポイントURL (任意)</label>
+    <input type="text" id="cfgWol" placeholder="http://127.0.0.1:8099/wol">
+
+    <h3>ヘルパースクリプト (任意・Windows標準のPowerShellのみ)</h3>
+    <p class="note">CORSは実測で問題なかったため、<b>WoLを使いたい場合のみ</b>必要です。<b>常駐不要</b>で、起動しなければ一切使われません。
+      保存して <code>powershell -ExecutionPolicy Bypass -File bravia-helper.ps1</code> で起動し、
+      プロキシURLに <code>http://127.0.0.1:8099/</code>、WoLエンドポイントに <code>http://127.0.0.1:8099/wol</code> を設定します。</p>
+    <button class="k sm" id="btnCopyHelper" style="margin-bottom:8px">スクリプトをコピー</button>
+    <pre class="code" id="helperSrc"># bravia-helper.ps1 : CORS proxy + Wake-on-LAN  (PowerShell 5.1 / Windows standard)
+$Prefix = 'http://127.0.0.1:8099/'
+$listener = New-Object System.Net.HttpListener
+$listener.Prefixes.Add($Prefix)
+$listener.Start()
+Write-Host "listening on $Prefix   (Ctrl+C to stop)"
+while ($listener.IsListening) {
+  $ctx = $listener.GetContext(); $req = $ctx.Request; $res = $ctx.Response
+  $res.AddHeader('Access-Control-Allow-Origin','*')
+  $res.AddHeader('Access-Control-Allow-Headers','*')
+  $res.AddHeader('Access-Control-Allow-Methods','POST,GET,OPTIONS')
+  if ($req.HttpMethod -eq 'OPTIONS') { $res.StatusCode = 204; $res.Close(); continue }
+  $out = ''
+  try {
+    if ($req.Url.AbsolutePath -eq '/wol') {
+      $mac = ($req.QueryString['mac'] -replace '[^0-9A-Fa-f]','')
+      if ($mac.Length -ne 12) { throw 'bad mac' }
+      $m = for ($i=0; $i -lt 12; $i+=2) { [byte]::Parse($mac.Substring($i,2),'HexNumber') }
+      $pkt = [byte[]](@([byte]255)*6 + ($m*16))
+      $udp = New-Object System.Net.Sockets.UdpClient
+      $udp.EnableBroadcast = $true
+      $ep = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Broadcast), 9
+      [void]$udp.Send($pkt, $pkt.Length, $ep); $udp.Close()
+      $res.StatusCode = 200; $out = 'wol sent to ' + $mac
+    } else {
+      $target = $req.Url.PathAndQuery.TrimStart('/') -replace '^http:/(?!/)','http://'
+      $body = (New-Object IO.StreamReader($req.InputStream, $req.ContentEncoding)).ReadToEnd()
+      $w = [System.Net.HttpWebRequest]::Create($target)
+      $w.Method = $req.HttpMethod
+      $w.Timeout = 5000
+      if ($req.ContentType) { $w.ContentType = $req.ContentType }
+      foreach ($h in @('X-Auth-PSK','SOAPAction','X-CERS-DEVICE-ID')) {
+        if ($req.Headers[$h]) { $w.Headers.Add($h, $req.Headers[$h]) }
+      }
+      if ($req.HttpMethod -eq 'POST') {
+        $b = [Text.Encoding]::UTF8.GetBytes($body)
+        $w.ContentLength = $b.Length
+        $s = $w.GetRequestStream(); $s.Write($b,0,$b.Length); $s.Close()
+      }
+      $r = $w.GetResponse()
+      $out = (New-Object IO.StreamReader($r.GetResponseStream())).ReadToEnd()
+      $res.StatusCode = [int]$r.StatusCode
+    }
+  } catch [System.Net.WebException] {
+    $er = $_.Exception.Response
+    if ($er) { $res.StatusCode = [int]$er.StatusCode
+               $out = (New-Object IO.StreamReader($er.GetResponseStream())).ReadToEnd() }
+    else     { $res.StatusCode = 502; $out = $_.Exception.Message }
+  } catch {
+    $res.StatusCode = 500; $out = $_.Exception.Message
+  }
+  $buf = [Text.Encoding]::UTF8.GetBytes($out)
+  $res.OutputStream.Write($buf,0,$buf.Length); $res.Close()
+}</pre>
+
+    <h3>IRCCコード表</h3>
+    <p class="note" id="codeSrcNote"></p>
+    <div style="max-height:260px;overflow-y:auto;margin-top:8px">
+      <table class="codes"><tbody id="codeTable"></tbody></table>
+    </div>
+
+    <h3>設定の保存</h3>
+    <p class="note" id="storeNote"></p>
+    <div class="row" style="margin-top:8px">
+      <button class="k sm" id="btnExport">設定をファイルに書き出す</button>
+      <button class="k sm" id="btnImport">ファイルから読み込む</button>
+    </div>
+    <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
+    <p class="note" style="margin-top:6px">ブラウザが保存領域を許可しない場合の確実な手段です。
+      書き出した <code>bravia-remote-settings.json</code> を、次回「読み込む」から選べば設定が戻ります。</p>
+
+    <div class="row" style="margin-top:18px">
+      <button class="k sm" id="btnClose">閉じる</button>
+      <button class="k accent sm" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   [A] CONFIG
+   ============================================================ */
+const CFG_KEY = 'bravia-remote/v1';
+
+const DEFAULT_CFG = {
+  // 2026-09-12 にSSDP探索で実測した値を既定にしてある
+  ip:'192.168.0.31', psk:'', irccPath:'/sony/ircc',
+  mode:'direct', proxy:'', minInterval:120,
+  wolEndpoint:'',
+  devices:{
+    // cecUri は TV が列挙しているCEC機器のURI。setPlayContent で名指し選択する。
+    // 2026-09-12 に getCurrentExternalInputsStatus で実測した値。
+    fbw1100:{ hdmi:'Hdmi2', mac:'', ip:'192.168.0.218',
+              cecUri:'extInput:cec?type=recorder&port=2&logicalAddr=1' },
+    ew500:{   hdmi:'Hdmi3', mac:'', ip:'192.168.0.213',
+              cecUri:'extInput:cec?type=recorder&port=3&logicalAddr=2' }
+  },
+  codes:{},          // 同期/手動で入った値（内蔵表より優先）
+  codeSource:'builtin',
+  macros:null        // null なら既定を生成
+};
+
+function deepMerge(base, over){
+  const out = Array.isArray(base) ? base.slice() : Object.assign({}, base);
+  for (const k in over){
+    if (over[k] && typeof over[k]==='object' && !Array.isArray(over[k]) && base[k] && typeof base[k]==='object')
+      out[k] = deepMerge(base[k], over[k]);
+    else out[k] = over[k];
+  }
+  return out;
+}
+
+let cfg, loadReport;
+(function(){
+  let raw = null;
+  try { raw = localStorage.getItem(CFG_KEY); }
+  catch(e){ cfg = deepMerge(DEFAULT_CFG, {});
+            loadReport = {kind:'ng', msg:'保存領域を読めません: ' + e.name + ': ' + e.message}; return; }
+
+  if (raw === null){ cfg = deepMerge(DEFAULT_CFG, {});
+                     loadReport = {kind:'in', msg:'保存データなし（初期値で起動）'}; return; }
+  try {
+    cfg = deepMerge(DEFAULT_CFG, JSON.parse(raw));
+    loadReport = {kind:'ok', msg:'保存データを読み込みました (' + raw.length + ' 文字'
+      + ' / PSK ' + (cfg.psk ? '設定済み' : '未設定') + ')'};
+  } catch(e){
+    // ここを黙って握り潰すと「保存したのに空」になり原因が分からなくなる
+    cfg = deepMerge(DEFAULT_CFG, {});
+    loadReport = {kind:'ng', msg:'保存データが壊れていて読めません (' + raw.length + ' 文字): '
+      + e.message + ' — 先頭: ' + raw.slice(0, 80) + ' / 末尾: ' + raw.slice(-40)};
+  }
+})();
+
+/** localStorageが本当に使えるかを実測する */
+function storageCheck(){
+  try{
+    const k = '__probe_' + Date.now();
+    localStorage.setItem(k, '1');
+    const back = localStorage.getItem(k);
+    localStorage.removeItem(k);
+    if (back !== '1') return {ok:false, why:'書き込めるが読み戻せない（プライベートモード等）'};
+    return {ok:true, why:''};
+  }catch(e){ return {ok:false, why:e.name + ': ' + e.message}; }
+}
+
+/** 内蔵コード表と同じ値は保存しない（保存データを小さく保つ） */
+function pruneCodes(){
+  for (const k of Object.keys(cfg.codes || {})){
+    if (cfg.codes[k] === FALLBACK_CODES[k]) delete cfg.codes[k];
+  }
+}
+
+/** 保存し、書けたかどうかを検証して返す */
+function saveCfg(){
+  try{
+    pruneCodes();
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    if (localStorage.getItem(CFG_KEY) === null) throw new Error('書き込み直後に消えました');
+    return true;
+  }catch(e){
+    log('ng','【設定が保存できません】' + (e.name||'') + ': ' + e.message
+      + ' — このブラウザはこのページの保存領域を許可していません。設定画面の「設定をファイルに書き出す」を使ってください。');
+    return false;
+  }
+}
+
+/* ============================================================
+   [B] CODES — KJ-65Z9D 実機から getRemoteControllerInfo で取得した146コード
+   (2026-09-12 取得 / interfaceVersion 5.4.0)。設定画面で同期・編集できる。
+   ============================================================ */
+const FALLBACK_CODES = {
+  Num1:'AAAAAQAAAAEAAAAAAw==',
+  Num2:'AAAAAQAAAAEAAAABAw==',
+  Num3:'AAAAAQAAAAEAAAACAw==',
+  Num4:'AAAAAQAAAAEAAAADAw==',
+  Num5:'AAAAAQAAAAEAAAAEAw==',
+  Num6:'AAAAAQAAAAEAAAAFAw==',
+  Num7:'AAAAAQAAAAEAAAAGAw==',
+  Num8:'AAAAAQAAAAEAAAAHAw==',
+  Num9:'AAAAAQAAAAEAAAAIAw==',
+  Num0:'AAAAAQAAAAEAAAAJAw==',
+  Num11:'AAAAAQAAAAEAAAAKAw==',
+  Num12:'AAAAAQAAAAEAAAALAw==',
+  Enter:'AAAAAQAAAAEAAAALAw==',
+  GGuide:'AAAAAQAAAAEAAAAOAw==',
+  ChannelUp:'AAAAAQAAAAEAAAAQAw==',
+  ChannelDown:'AAAAAQAAAAEAAAARAw==',
+  VolumeUp:'AAAAAQAAAAEAAAASAw==',
+  VolumeDown:'AAAAAQAAAAEAAAATAw==',
+  Mute:'AAAAAQAAAAEAAAAUAw==',
+  TvPower:'AAAAAQAAAAEAAAAVAw==',
+  Audio:'AAAAAQAAAAEAAAAXAw==',
+  MediaAudioTrack:'AAAAAQAAAAEAAAAXAw==',
+  Tv:'AAAAAQAAAAEAAAAkAw==',
+  Input:'AAAAAQAAAAEAAAAlAw==',
+  TvInput:'AAAAAQAAAAEAAAAlAw==',
+  TvAntennaCable:'AAAAAQAAAAEAAAAqAw==',
+  WakeUp:'AAAAAQAAAAEAAAAuAw==',
+  PowerOff:'AAAAAQAAAAEAAAAvAw==',
+  Sleep:'AAAAAQAAAAEAAAAvAw==',
+  Right:'AAAAAQAAAAEAAAAzAw==',
+  Left:'AAAAAQAAAAEAAAA0Aw==',
+  SleepTimer:'AAAAAQAAAAEAAAA2Aw==',
+  Analog2:'AAAAAQAAAAEAAAA4Aw==',
+  TvAnalog:'AAAAAQAAAAEAAAA4Aw==',
+  Display:'AAAAAQAAAAEAAAA6Aw==',
+  Jump:'AAAAAQAAAAEAAAA7Aw==',
+  PicOff:'AAAAAQAAAAEAAAA+Aw==',
+  PictureOff:'AAAAAQAAAAEAAAA+Aw==',
+  Teletext:'AAAAAQAAAAEAAAA/Aw==',
+  Video1:'AAAAAQAAAAEAAABAAw==',
+  Video2:'AAAAAQAAAAEAAABBAw==',
+  AnalogRgb1:'AAAAAQAAAAEAAABDAw==',
+  Home:'AAAAAQAAAAEAAABgAw==',
+  Exit:'AAAAAQAAAAEAAABjAw==',
+  PictureMode:'AAAAAQAAAAEAAABkAw==',
+  Confirm:'AAAAAQAAAAEAAABlAw==',
+  Up:'AAAAAQAAAAEAAAB0Aw==',
+  Down:'AAAAAQAAAAEAAAB1Aw==',
+  ClosedCaption:'AAAAAgAAAKQAAAAQAw==',
+  Component1:'AAAAAgAAAKQAAAA2Aw==',
+  Component2:'AAAAAgAAAKQAAAA3Aw==',
+  Wide:'AAAAAgAAAKQAAAA9Aw==',
+  EPG:'AAAAAgAAAKQAAABbAw==',
+  PAP:'AAAAAgAAAKQAAAB3Aw==',
+  TenKey:'AAAAAgAAAJcAAAAMAw==',
+  BSCS:'AAAAAgAAAJcAAAAQAw==',
+  Ddata:'AAAAAgAAAJcAAAAVAw==',
+  Stop:'AAAAAgAAAJcAAAAYAw==',
+  Pause:'AAAAAgAAAJcAAAAZAw==',
+  Play:'AAAAAgAAAJcAAAAaAw==',
+  Rewind:'AAAAAgAAAJcAAAAbAw==',
+  Forward:'AAAAAgAAAJcAAAAcAw==',
+  DOT:'AAAAAgAAAJcAAAAdAw==',
+  Rec:'AAAAAgAAAJcAAAAgAw==',
+  Return:'AAAAAgAAAJcAAAAjAw==',
+  Blue:'AAAAAgAAAJcAAAAkAw==',
+  Red:'AAAAAgAAAJcAAAAlAw==',
+  Green:'AAAAAgAAAJcAAAAmAw==',
+  Yellow:'AAAAAgAAAJcAAAAnAw==',
+  SubTitle:'AAAAAgAAAJcAAAAoAw==',
+  CS:'AAAAAgAAAJcAAAArAw==',
+  BS:'AAAAAgAAAJcAAAAsAw==',
+  Digital:'AAAAAgAAAJcAAAAyAw==',
+  Options:'AAAAAgAAAJcAAAA2Aw==',
+  Media:'AAAAAgAAAJcAAAA4Aw==',
+  Prev:'AAAAAgAAAJcAAAA8Aw==',
+  Next:'AAAAAgAAAJcAAAA9Aw==',
+  DpadCenter:'AAAAAgAAAJcAAABKAw==',
+  CursorUp:'AAAAAgAAAJcAAABPAw==',
+  CursorDown:'AAAAAgAAAJcAAABQAw==',
+  CursorLeft:'AAAAAgAAAJcAAABNAw==',
+  CursorRight:'AAAAAgAAAJcAAABOAw==',
+  ShopRemoteControlForcedDynamic:'AAAAAgAAAJcAAABqAw==',
+  FlashPlus:'AAAAAgAAAJcAAAB4Aw==',
+  FlashMinus:'AAAAAgAAAJcAAAB5Aw==',
+  DemoMode:'AAAAAgAAAJcAAAB8Aw==',
+  Analog:'AAAAAgAAAHcAAAANAw==',
+  Mode3D:'AAAAAgAAAHcAAABNAw==',
+  DigitalToggle:'AAAAAgAAAHcAAABSAw==',
+  DemoSurround:'AAAAAgAAAHcAAAB7Aw==',
+  '*AD':'AAAAAgAAABoAAAA7Aw==',
+  AudioMixUp:'AAAAAgAAABoAAAA8Aw==',
+  AudioMixDown:'AAAAAgAAABoAAAA9Aw==',
+  PhotoFrame:'AAAAAgAAABoAAABVAw==',
+  Tv_Radio:'AAAAAgAAABoAAABXAw==',
+  SyncMenu:'AAAAAgAAABoAAABYAw==',
+  Hdmi1:'AAAAAgAAABoAAABaAw==',
+  Hdmi2:'AAAAAgAAABoAAABbAw==',
+  Hdmi3:'AAAAAgAAABoAAABcAw==',
+  Hdmi4:'AAAAAgAAABoAAABdAw==',
+  TopMenu:'AAAAAgAAABoAAABgAw==',
+  PopUpMenu:'AAAAAgAAABoAAABhAw==',
+  OneTouchTimeRec:'AAAAAgAAABoAAABkAw==',
+  OneTouchView:'AAAAAgAAABoAAABlAw==',
+  DUX:'AAAAAgAAABoAAABzAw==',
+  FootballMode:'AAAAAgAAABoAAAB2Aw==',
+  iManual:'AAAAAgAAABoAAAB7Aw==',
+  Netflix:'AAAAAgAAABoAAAB8Aw==',
+  Assists:'AAAAAgAAAMQAAAA7Aw==',
+  FeaturedApp:'AAAAAgAAAMQAAABEAw==',
+  FeaturedAppVOD:'AAAAAgAAAMQAAABFAw==',
+  GooglePlay:'AAAAAgAAAMQAAABGAw==',
+  ActionMenu:'AAAAAgAAAMQAAABLAw==',
+  Help:'AAAAAgAAAMQAAABNAw==',
+  TvSatellite:'AAAAAgAAAMQAAABOAw==',
+  WirelessSubwoofer:'AAAAAgAAAMQAAAB+Aw==',
+  AndroidMenu:'AAAAAgAAAMQAAABPAw==',
+  RecorderMenu:'AAAAAgAAAMQAAABIAw==',
+  STBMenu:'AAAAAgAAAMQAAABJAw==',
+  MuteOn:'AAAAAgAAAMQAAAAsAw==',
+  MuteOff:'AAAAAgAAAMQAAAAtAw==',
+  AudioOutput_AudioSystem:'AAAAAgAAAMQAAAAiAw==',
+  AudioOutput_TVSpeaker:'AAAAAgAAAMQAAAAjAw==',
+  AudioOutput_Toggle:'AAAAAgAAAMQAAAAkAw==',
+  ApplicationLauncher:'AAAAAgAAAMQAAAAqAw==',
+  YouTube:'AAAAAgAAAMQAAABHAw==',
+  PartnerApp1:'AAAAAgAACB8AAAAAAw==',
+  PartnerApp2:'AAAAAgAACB8AAAABAw==',
+  PartnerApp3:'AAAAAgAACB8AAAACAw==',
+  PartnerApp4:'AAAAAgAACB8AAAADAw==',
+  PartnerApp5:'AAAAAgAACB8AAAAEAw==',
+  PartnerApp6:'AAAAAgAACB8AAAAFAw==',
+  PartnerApp7:'AAAAAgAACB8AAAAGAw==',
+  PartnerApp8:'AAAAAgAACB8AAAAHAw==',
+  PartnerApp9:'AAAAAgAACB8AAAAIAw==',
+  PartnerApp10:'AAAAAgAACB8AAAAJAw==',
+  PartnerApp11:'AAAAAgAACB8AAAAKAw==',
+  PartnerApp12:'AAAAAgAACB8AAAALAw==',
+  PartnerApp13:'AAAAAgAACB8AAAAMAw==',
+  PartnerApp14:'AAAAAgAACB8AAAANAw==',
+  PartnerApp15:'AAAAAgAACB8AAAAOAw==',
+  PartnerApp16:'AAAAAgAACB8AAAAPAw==',
+  PartnerApp17:'AAAAAgAACB8AAAAQAw==',
+  PartnerApp18:'AAAAAgAACB8AAAARAw==',
+  PartnerApp19:'AAAAAgAACB8AAAASAw==',
+  PartnerApp20:'AAAAAgAACB8AAAATAw=='
+};
+
+/** コード名 -> base64。未取得なら null */
+function codeOf(name){
+  if (cfg.codes && cfg.codes[name]) return cfg.codes[name];
+  if (FALLBACK_CODES[name]) return FALLBACK_CODES[name];
+  return null;
+}
+function allCodeNames(){
+  return Array.from(new Set(Object.keys(FALLBACK_CODES).concat(Object.keys(cfg.codes||{})))).sort();
+}
+
+/* ============================================================
+   [C] NET — 直列キュー / IRCC / REST / エラー分類
+   ============================================================ */
+let chain = Promise.resolve();
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function enqueue(fn){
+  const p = chain.then(fn);
+  chain = p.catch(()=>{}).then(()=>sleep(Math.max(0, cfg.minInterval|0)));
+  return p;
+}
+
+function proxied(targetUrl){
+  if (cfg.mode === 'proxy' && cfg.proxy) return cfg.proxy.replace(/\/+$/,'/') + targetUrl;
+  return targetUrl;
+}
+
+async function fetchT(url, opts, ms){
+  const ac = new AbortController();
+  const t = setTimeout(()=>ac.abort(), ms || 5000);
+  try { return await fetch(url, Object.assign({signal:ac.signal}, opts)); }
+  finally { clearTimeout(t); }
+}
+
+function describeError(e){
+  if (e && e.name === 'AbortError') return 'タイムアウト (TVのネットワーク待機がOFF / 到達不可の可能性)';
+  if (e instanceof TypeError)       return 'CORSブロック または IP誤り/未到達 (' + e.message + ')';
+  return (e && e.message) ? e.message : String(e);
+}
+function httpHint(status){
+  if (status === 403) return ' (PSK不一致の可能性)';
+  if (status === 404) return ' (パス誤りの可能性)';
+  if (status === 500) return ' (コード不正 / 機器が受理しない可能性)';
+  return '';
+}
+
+const SOAP_ACTION = '"urn:schemas-sony-com:service:IRCC:1#X_SendIRCC"';
+function soapBody(code){
+  return '<?xml version="1.0"?>\n' +
+    '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"\n' +
+    '            s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">\n' +
+    '  <s:Body>\n' +
+    '    <u:X_SendIRCC xmlns:u="urn:schemas-sony-com:service:IRCC:1">\n' +
+    '      <IRCCCode>' + code + '</IRCCCode>\n' +
+    '    </u:X_SendIRCC>\n' +
+    '  </s:Body>\n' +
+    '</s:Envelope>';
+}
+
+/** BRAVIAへIRCC送信 */
+function irccToTV(code){
+  if (!cfg.ip) return Promise.reject(new Error('TV IPアドレスが未設定です'));
+  const url = proxied('http://' + cfg.ip + cfg.irccPath);
+  return fetchT(url, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/xml; charset=utf-8',
+              'SOAPAction':SOAP_ACTION, 'X-Auth-PSK':cfg.psk },
+    body: soapBody(code)
+  }).then(res=>{
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText + httpHint(res.status));
+    return true;
+  });
+}
+
+/* --- BDZ の X_PvrControl（実測で存在を確認したサービス） ---
+   SSDP探索の結果、BDZ-FBW1100 / BDZ-EW500 は IRCC を持たず、
+   port 64220 の urn:schemas-s-bras-org:service:X_PvrControl:1 を公開している。
+   X_InputRemoteKey / X_PowerControl 等のアクションが存在するが、
+   レコーダー側に「リモート機器登録」をしていない端末からは全て HTTP 403 になる。
+   よって通常操作には使わず、診断用途にとどめる。 */
+const PVR_SVC  = 'urn:schemas-s-bras-org:service:X_PvrControl:1';
+const PVR_PORT = 64220;
+const PVR_PATH = '/X_PvrControl';
+
+function pvrCall(ip, action, innerXml){
+  if (!ip) return Promise.reject(new Error('BDZ IPアドレスが未設定です'));
+  const url = proxied('http://' + ip + ':' + PVR_PORT + PVR_PATH);
+  const body = '<?xml version="1.0" encoding="utf-8"?>' +
+    '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ' +
+    's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
+    '<s:Body><u:' + action + ' xmlns:u="' + PVR_SVC + '">' + (innerXml||'') +
+    '</u:' + action + '></s:Body></s:Envelope>';
+  return fetchT(url, {
+    method:'POST',
+    headers:{'Content-Type':'text/xml; charset="utf-8"',
+             'SOAPAction':'"' + PVR_SVC + '#' + action + '"'},
+    body: body
+  }, 6000).then(res=>({ status: res.status, ok: res.ok }));
+}
+
+/** BRAVIA REST (/sony/system) */
+async function rest(method, params, version, svc){
+  if (!cfg.ip) throw new Error('TV IPアドレスが未設定です');
+  const url = proxied('http://' + cfg.ip + '/sony/' + (svc || 'system'));
+  const res = await fetchT(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json', 'X-Auth-PSK':cfg.psk},
+    body: JSON.stringify({method:method, id:Math.floor(Math.random()*9000)+1000,
+                          params: params || [], version: version || '1.0'})
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText + httpHint(res.status));
+  const j = await res.json();
+  if (j.error) throw new Error('APIエラー ' + JSON.stringify(j.error));
+  return j.result;
+}
+
+/** CEC機器/外部入力を名指しで選択する（HDMIポート指定より確実） */
+function selectInput(uri){
+  return rest('setPlayContent', [{uri:uri}], '1.0', 'avContent');
+}
+
+/* 電源ON直後のTVは getPowerStatus が active でも映像系が未初期化で、
+   setPlayContent が {"error":[7,"Illegal State"]} を返す。
+   実際に切り替わったことを getPlayingContentInfo で確認するまでリトライする。 */
+function inputPort(uri){ const m = /[?&]port=(\d+)/.exec(uri || ''); return m ? m[1] : null; }
+
+/* レコーダーが待機中のとき、TVは extInput:cec?... ではなく素の extInput:hdmi?port=N を
+   現在の入力として返す。よってURI完全一致ではなくポート一致で判定する。 */
+function inputMatches(cur, target){
+  if (!cur) return false;
+  if (cur.uri === target) return true;
+  const a = inputPort(cur.uri), b = inputPort(target);
+  return !!a && a === b;
+}
+
+/* TVは対象のCEC機器が起き上がるまで extInput:cec?... への切り替えを
+   {"error":[7,"Illegal State"]} で拒否する。拒否され続けている間はHDMIの
+   ハンドシェイクすら始まらないため、まず素の extInput:hdmi?port=N に
+   切り替えて機器を起こし、そのあとCEC機器の起動を待つ。 */
+async function selectInputVerified(uri, tries){
+  tries = tries || 10;
+  const port  = inputPort(uri);
+  const plain = port ? ('extInput:hdmi?port=' + port) : null;
+
+  for (let i = 1; i <= tries; i++){
+    if (macroAbort) return false;
+    let err = null;
+
+    // 1st: 素のHDMIポート（機器が待機中でも受け付けられる）
+    if (plain){
+      try { await selectInput(plain); }
+      catch(e){ err = describeError(e); }
+      for (let j = 0; j < 3; j++){
+        await sleep(350);
+        if (inputMatches(await currentInput(), uri)) return true;   // ポート一致でOK
+      }
+    }
+    // 2nd: CEC機器を名指し（起きていれば成功し、アクティブソースになる）
+    try { await selectInput(uri); }
+    catch(e){ err = err || describeError(e); }
+    await sleep(350);
+    if (inputMatches(await currentInput(), uri)) return true;
+
+    if (i === 1) log('wn','  入力切替を待っています' + (err ? ' (' + err + ')' : ''));
+  }
+  return false;
+}
+
+/* CEC機器が実際にアクティブソースになるまで待つ。
+   待機中のレコーダーは extInput:hdmi?port=N として見え、起動し終えると
+   extInput:cec?... に変わる。固定秒数ではなくこの変化を待つことで、
+   温まっているときは即座に、コールドスタート時だけ必要なだけ待つ。 */
+async function waitForDevice(uri, maxMs){
+  const t0 = Date.now();
+  let announced = false, woke = 0;
+  while (Date.now() - t0 < maxMs){
+    if (macroAbort) return false;
+
+    // signal 1: その機器がアクティブソースになった（TV直結の機器はこれが立つ）
+    const cur = await currentInput();
+    if (cur && cur.uri === uri){
+      log('ok','  機器が起動しました (' + ((Date.now()-t0)/1000).toFixed(1) + '秒 / アクティブソース)');
+      await sleep(800);            // 画面が落ち着いてからメニュー操作へ
+      return true;
+    }
+    // signal 2: CEC機器一覧に現れた = 目を覚ました。
+    //   ただしこれだけではリンクメニューから操作できない。
+    //   一覧に出た時点で改めてCEC機器を名指しし、アクティブソース化を促す。
+    try{
+      const list = await listInputs();
+      const hit = list.find(i=>i.uri === uri);
+      if (hit && hit.connection){
+        if (!woke){
+          log('in','  機器が応答しました (' + ((Date.now()-t0)/1000).toFixed(1) + '秒)');
+          woke = Date.now();
+        }
+        try { await selectInput(uri); } catch(e){ /* まだ早ければ次のポーリングで再試行 */ }
+        // アクティブソース化は機器構成によっては起きない。応答から一定時間で進む。
+        if (Date.now() - woke > 4000){
+          log('ok','  機器の準備完了とみなします (' + ((Date.now()-t0)/1000).toFixed(1) + '秒)');
+          return true;
+        }
+      }
+    }catch(e){ /* 一覧が取れない間は次のポーリングで再試行 */ }
+
+    if (!announced){ log('in','  機器の起動を待っています…'); announced = true; }
+    await sleep(600);
+  }
+  log('wn','  起動を検知できませんでした（' + (maxMs/1000) + '秒）。そのまま続行します');
+  return false;
+}
+/** 現在選択されている入力/機器 */
+async function currentInput(){
+  try{
+    const r = await rest('getPlayingContentInfo', [], '1.0', 'avContent');
+    return (r && r[0]) || null;
+  }catch(e){ return null; }
+}
+/** TVが列挙しているCEC機器と外部入力の一覧 */
+async function listInputs(){
+  const r = await rest('getCurrentExternalInputsStatus', [], '1.0', 'avContent');
+  return (r && r[0]) || [];
+}
+
+/* ============================================================
+   [D] DEVICES
+   ============================================================ */
+let currentDevice = 'tv';   // いま操作対象にしている機器
+const DEVICES = [
+  { id:'tv',       tab:'TV',           sub:'KJ-65Z9D' },
+  { id:'fbw1100',  tab:'BDZ-FBW1100',  sub:'HDMI 2'   },
+  { id:'ew500',    tab:'BDZ-EW500',    sub:'HDMI 3'   }
+];
+function devLabel(id){
+  if (id === 'tv') return 'TV';
+  return (id === 'fbw1100' ? 'BDZ-FBW1100' : 'BDZ-EW500') + ' (CEC)';
+}
+
+/** 1キー送信。UIはこの関数しか呼ばない。 */
+function send(devId, keyName){
+  const code = codeOf(keyName);
+  if (!code){
+    log('wn', devLabel(devId) + ' → ' + keyName + '  [コード未取得のため送信しません]');
+    return Promise.resolve(false);
+  }
+  return enqueue(()=>{
+    // BDZタブのキーもBRAVIAへ送る（HDMI-CECでレコーダーに中継される）
+    return irccToTV(code)
+            .then(()=>{ log('ok', devLabel(devId) + ' → ' + keyName); return true; })
+            .catch(e=>{ log('ng', devLabel(devId) + ' → ' + keyName + '   ' + describeError(e)); return false; });
+  });
+}
+
+/* ============================================================
+   [E] MACRO
+   ============================================================ */
+/* 2026-09-12 実機検証で確定した「レコーダーのホームを開く」経路。
+   ステップは2種類:
+     {sel:'<CEC URI>'}  … setPlayContent で機器を名指し選択（成否をAPIで検証できる）
+     {key:'<コード名>'}  … IRCC送信
+
+   FBW1100: TVのBRAVIA Link設定で「レコーダー」登録されているため RecorderMenu 一発で届く。
+   EW500  : AVアンプ(STR-DA5300ES)経由。RecorderMenu も TopMenu も届かないため、
+            リンクメニュー →「見ている機器を操作する」→「ホーム」を辿る。 */
+function defaultMacro(devId){
+  const uri = cfg.devices[devId].cecUri;
+  if (devId === 'fbw1100'){
+    return [
+      {sel:uri,            wait:20000},   // 最大待ち時間（検知したら即抜ける）
+      {key:'Return',       wait:700},     // 開いているメニューを閉じる
+      {key:'RecorderMenu', wait:0}
+    ];
+  }
+  return [
+    {sel:uri,        wait:25000},  // 最大待ち時間（準備完了を検知したら即抜ける）
+    /* リンクメニューは8項目の循環リストで、3番目が「録画する」。
+       前の操作でメニューが開いたままだと初期フォーカスがずれ、
+       誤って録画を開始する危険がある。必ず閉じてから開き直す。 */
+    {key:'Return',   wait:700},    // 開いているメニューを閉じる
+    {key:'Return',   wait:900},
+    {key:'SyncMenu', wait:2500},   // リンクメニュー（先頭=つないだ機器を選ぶ)
+    {key:'Down',     wait:900},    // 2番目「見ている機器を操作する」
+    {key:'Confirm',  wait:2000},
+    {key:'Confirm',  wait:0}       // 「ホーム」
+  ];
+}
+function getMacro(devId){
+  if (!cfg.macros) cfg.macros = {};
+  if (!cfg.macros[devId]) cfg.macros[devId] = defaultMacro(devId);
+  return cfg.macros[devId];
+}
+
+/** TVがOFFなら電源を入れ、activeになるまで待つ。マクロの先頭で使う。 */
+async function ensurePowerOn(){
+  const st = await refreshPower(true);
+  if (st === 'active') return true;
+  log('in','TVが待機中です。電源をONにします…');
+  try { await rest('setPowerStatus', [{status:true}]); }
+  catch(e){ log('ng','電源ONに失敗: ' + describeError(e)); return false; }
+  const p0 = Date.now();
+  while (Date.now() - p0 < 25000){
+    if (macroAbort){ log('wn','中断'); return false; }
+    await sleep(300);
+    if (await refreshPower(true) === 'active'){
+      log('ok','TV ON (' + ((Date.now()-p0)/1000).toFixed(1) + '秒)');
+      await sleep(800);           // 以降は selectInputVerified がリトライで吸収する
+      return true;
+    }
+  }
+  log('ng','TVがONになりませんでした（ネットワーク待機の設定を確認してください）');
+  return false;
+}
+
+let macroAbort = false, macroRunning = false;
+
+async function runMacro(devId){
+  if (macroRunning){ log('wn','マクロ実行中です'); return; }
+  const steps = getMacro(devId);
+  macroRunning = true; macroAbort = false; setMacroUI(true);
+  const mt0 = Date.now();
+  const el = ()=> '+' + ((Date.now()-mt0)/1000).toFixed(1) + 's ';
+  log('in','── 起動: ' + devLabel(devId) + ' ──');
+  const pw0 = Date.now();
+  if (!(await ensurePowerOn())){
+    log('ng','TVがONにならないため中止しました');
+    macroRunning = false; setMacroUI(false);
+    return;
+  }
+  log('in', el() + '電源確認まで (' + ((Date.now()-pw0)/1000).toFixed(1) + 's)');
+  for (let i = 0; i < steps.length; i++){
+    if (macroAbort){ log('wn','マクロ中断'); break; }
+    const s = steps[i];
+    const tag = '[' + (i+1) + '/' + steps.length + '] ';
+    let ok = false, label;
+
+    if (s.sel){
+      label = '機器選択';
+      const s0 = Date.now();
+      ok = await selectInputVerified(s.sel);
+      log('in', el() + '機器選択コマンドに ' + ((Date.now()-s0)/1000).toFixed(1) + 's');
+      if (ok){
+        const cur = await currentInput();
+        log('ok', tag + '機器選択OK: ' + ((cur && (cur.title || cur.uri)) || s.sel));
+        const w0 = Date.now();
+        await waitForDevice(s.sel, s.wait || 15000);   // waitは「最大待ち時間」として使う
+        log('in', el() + '機器起動待ちに ' + ((Date.now()-w0)/1000).toFixed(1) + 's');
+      } else {
+        log('ng', tag + '機器選択が反映されませんでした');
+      }
+    } else {
+      label = s.key;
+      if (!codeOf(s.key)){ log('wn', tag + s.key + ' はコード未取得のためスキップ'); continue; }
+      ok = await send('tv', s.key);          // マクロは常にTVへ送る（入力切替/CEC操作のため）
+    }
+
+    if (!ok){ log('ng', tag + '失敗のため中断'); break; }
+    if (s.sel) continue;                     // 機器選択は上で待ち合わせ済み
+    log('in', el() + tag + label + ' / wait ' + s.wait + 'ms');
+    const until = Date.now() + (s.wait|0);
+    while (Date.now() < until){ if (macroAbort) break; await sleep(50); }
+  }
+  log('ok','── 完了 合計 ' + ((Date.now()-mt0)/1000).toFixed(1) + '秒 ──');
+  macroRunning = false; setMacroUI(false);
+}
+function setMacroUI(running){
+  document.querySelectorAll('[data-macrobtn]').forEach(b=>{ b.disabled = running; b.classList.toggle('na', running); });
+  document.querySelectorAll('[data-abortbtn]').forEach(b=>{ b.classList.toggle('hidden', !running); });
+}
+
+/* ============================================================
+   [F] 電源
+   ============================================================ */
+let powerState = 'unknown';
+function setPowerPill(s){
+  powerState = s;
+  const el = document.getElementById('pwPill');
+  el.className = 'pill' + (s==='active'?' on': s==='standby'?' off': s==='error'?' err':'');
+  el.textContent = '状態: ' + ({active:'ON', standby:'待機', unknown:'未確認', error:'取得失敗'}[s] || s);
+}
+async function refreshPower(quiet){
+  try{
+    const r = await rest('getPowerStatus');
+    const st = (r && r[0] && r[0].status) || 'unknown';
+    setPowerPill(st);
+    if (!quiet) log('ok','TV 電源状態: ' + st);
+    return st;
+  }catch(e){
+    setPowerPill('error');
+    if (!quiet) log('ng','電源状態の取得に失敗: ' + describeError(e));
+    return null;
+  }
+}
+async function tvPowerToggle(){
+  const want = (powerState !== 'active');
+  try{
+    await rest('setPowerStatus', [{status: want}]);
+    log('ok','TV → 電源 ' + (want ? 'ON' : 'OFF') + ' (REST)');
+    setTimeout(()=>refreshPower(true), 1500);
+  }catch(e){
+    log('ng','TV → 電源 (REST) 失敗: ' + describeError(e) + ' / IRCCで再試行します');
+    send('tv', want ? 'WakeUp' : 'PowerOff');
+  }
+}
+function bdzPower(devId){
+  const d = cfg.devices[devId];
+  if (cfg.wolEndpoint && d.mac){
+    const u = cfg.wolEndpoint + (cfg.wolEndpoint.indexOf('?')>=0?'&':'?') + 'mac=' + encodeURIComponent(d.mac);
+    log('in', devLabel(devId) + ' → WoL要求: ' + u);
+    fetchT(u, {method:'GET'}, 4000)
+      .then(r=> r.ok ? log('ok','WoL送信OK') : log('ng','WoL失敗 HTTP ' + r.status))
+      .catch(e=> log('ng','WoL失敗: ' + describeError(e)));
+    return;
+  }
+  log('wn', devLabel(devId) + ' の電源ONは、このアプリ単体では実行できません（ブラウザはUDPを送れません）。'
+    + 'MACとWoLエンドポイントを設定するか、接続マクロでHDMI入力を選択してください（BRAVIA Link連動で電源が入る場合があります）。');
+}
+
+/* ============================================================
+   [G] UI
+   ============================================================ */
+function el(html){ const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+
+function btn(key, label, extraCls, sub){
+  return '<button class="k ' + (extraCls||'') + '" data-key="' + key + '">' + label +
+         (sub ? '<span class="sub">' + sub + '</span>' : '') + '</button>';
+}
+function row(cols, items){
+  return '<div class="grid g' + cols + '">' + items.map(x=>btn(x[0], x[1], x[2], x[3])).join('') + '</div>';
+}
+function card(title, inner){
+  return '<div class="card"><h2>' + title + '</h2>' + inner + '</div>';
+}
+
+/* KJ-65Z9D の実機リモコンに沿ったボタン配置。
+   コードはすべて getRemoteControllerInfo で実機から取得した146件から引いている。
+   コード表に無いものは refreshAvailability() でグレーアウトされ、押しても送信しない。 */
+function buildRemote(){
+  let h = '';
+
+  /* 実機リモコンの配置に合わせ、よく使うものを上に置く。
+     十字キーの周囲に戻る/ホームと走行系をまとめるのは実機と同じ。 */
+
+  h += card('電源・入力', row(4, [
+    ['__power','電源','accent'], ['Input','入力切替'], ['Tv','テレビ'], ['SyncMenu','リンク<br>メニュー','sm']
+  ]));
+
+  h += card('カーソル・再生',
+      row(4, [['Return','戻る','sm'], ['Home','ホーム','sm'], ['Options','オプション','sm'], ['Exit','終了','sm']])
+    + '<div class="sp"></div>'
+    + '<div class="dpad">'
+    + '<span></span>' + btn('Up','▲') + '<span></span>'
+    + btn('Left','◀') + btn('Confirm','決定','ok') + btn('Right','▶')
+    + '<span></span>' + btn('Down','▼') + '<span></span>'
+    + '</div>'
+    + '<div class="sp"></div>'
+    + row(4, [['Prev','|◀◀','sm','前へ'], ['Rewind','◀◀','sm','早戻し'],
+              ['Forward','▶▶','sm','早送り'], ['Next','▶▶|','sm','次へ']])
+    + '<div class="sp8"></div>'
+    + row(4, [['Play','▶','','再生'], ['Pause','❙❙','','一時停止'],
+              ['Stop','■','','停止'], ['Rec','●','danger','録画']]));
+
+  // 音量は必ず  －  ＋  消音  の順
+  h += card('音量', row(3, [['VolumeDown','－'], ['VolumeUp','＋'], ['Mute','消音']]));
+
+  h += card('チャンネル', row(3, [
+    ['ChannelDown','CH －'], ['ChannelUp','CH ＋'], ['Jump','前のCH','sm']
+  ]));
+
+  h += card('放送切替', row(4, [
+    ['Digital','地デジ','sm'], ['BS','BS','sm'], ['CS','CS','sm'], ['BSCS','BS/CS','sm']
+  ]) + '<div class="sp8"></div>' + row(4, [
+    ['Ddata','データ','sm'], ['Tv_Radio','ラジオ','sm'], ['DigitalToggle','デジタル<br>切換','sm'], ['Analog','アナログ','sm']
+  ]));
+
+  h += card('数字 (1〜12)',
+      row(4, [['Num1','1'],['Num2','2'],['Num3','3'],['Num4','4']])
+    + '<div class="sp8"></div>'
+    + row(4, [['Num5','5'],['Num6','6'],['Num7','7'],['Num8','8']])
+    + '<div class="sp8"></div>'
+    + row(4, [['Num9','9'],['Num0','10'],['Num11','11'],['Num12','12']])
+    + '<div class="sp8"></div>'
+    + row(3, [['Enter','入力','sm'],['DOT','・','sm'],['TenKey','10キー','sm']]));
+
+  h += card('カラーボタン',
+    '<div class="grid g4">'
+    + '<button class="k col-b" data-key="Blue">青</button>'
+    + '<button class="k col-r" data-key="Red">赤</button>'
+    + '<button class="k col-g" data-key="Green">緑</button>'
+    + '<button class="k col-y" data-key="Yellow">黄</button>'
+    + '</div>');
+
+  h += card('番組表・表示', row(4, [
+    ['GGuide','番組表','sm'], ['EPG','EPG','sm'], ['Display','画面表示','sm'], ['Wide','ワイド','sm']
+  ]) + '<div class="sp8"></div>' + row(4, [
+    ['SubTitle','字幕','sm'], ['Audio','音声切換','sm'], ['PicOff','消画','sm'], ['PictureMode','画質','sm']
+  ]));
+
+  h += card('機器メニュー', row(4, [
+    ['RecorderMenu','レコーダー<br>メニュー','sm'], ['TopMenu','トップ<br>メニュー','sm'],
+    ['PopUpMenu','ポップ<br>アップ','sm'], ['OneTouchView','ワンタッチ<br>再生','sm']
+  ]));
+
+  h += card('アプリ', row(4, [
+    ['Netflix','Netflix','sm'], ['YouTube','YouTube','sm'],
+    ['GooglePlay','Google<br>Play','sm'], ['ApplicationLauncher','アプリ','sm']
+  ]) + '<div class="sp8"></div>' + row(4, [
+    ['ActionMenu','アクション<br>メニュー','sm'], ['Help','ヘルプ','sm'],
+    ['iManual','取説','sm'], ['AndroidMenu','メニュー','sm']
+  ]));
+
+  h += card('音声出力', row(4, [
+    ['AudioOutput_TVSpeaker','TV<br>スピーカー','sm'], ['AudioOutput_AudioSystem','オーディオ<br>システム','sm'],
+    ['AudioOutput_Toggle','切換','sm'], ['WirelessSubwoofer','SW','sm']
+  ]));
+
+  // 上に出していないコードをすべて出す（全146件を網羅）
+  h += '<details class="card"><summary class="note" style="cursor:pointer">その他すべてのコード</summary>'
+     + '<div id="allCodes" style="margin-top:10px"></div></details>';
+
+  return h;
+}
+
+/** 機器選択バー（旧タブ）。リモコン本体は共通なので、ここは「どの機器を見るか」だけを担う */
+function buildTabs(){
+  const t = document.getElementById('tabs');
+  t.innerHTML = DEVICES.map(d=>
+    '<button data-sel="' + d.id + '">' + d.tab + '<small>' + d.sub + '</small></button>'
+  ).join('');
+  t.onclick = e=>{
+    const b = e.target.closest('button[data-sel]'); if (!b) return;
+    selectDevice(b.dataset.sel);
+  };
+}
+
+/** 機器を選ぶ。レコーダーはホームまで開くマクロを実行する */
+function selectDevice(id){
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('sel'));
+  const b = document.querySelector('#tabs button[data-sel="' + id + '"]');
+  if (b) b.classList.add('sel');
+  currentDevice = id;
+  updateMacroCard();
+  if (id === 'tv'){ pressKey('tv','Tv').then(()=>setTimeout(refreshCurrentInput, 1500)); }
+  else runMacro(id).then(refreshCurrentInput);
+}
+
+/** いまTVが表示している機器を取得してバッジに出す */
+async function refreshCurrentInput(){
+  const cur = await currentInput();
+  const el2 = document.getElementById('curPill');
+  if (!el2) return;
+  el2.textContent = cur ? ('表示中: ' + (cur.title || cur.uri)) : '表示中: 不明';
+}
+
+/** ボタン押下の共通入口。TVが待機中なら先に電源を入れてから送る。
+    TV OFF のまま Home などを送っても効かないため。 */
+/** 「ホームを開く」ボタンの表示を、選択中の機器に合わせて更新する */
+function updateMacroCard(){
+  const b = document.querySelector('[data-macro="__cur"]');
+  if (b) b.textContent = (currentDevice === 'tv' ? 'TV' : devLabel(currentDevice).replace(' (CEC)','')) + ' のホームを開く';
+  const host = document.getElementById('macroEditHost');
+  const wrap = document.getElementById('macroEditWrap');
+  if (wrap) wrap.classList.toggle('hidden', currentDevice === 'tv');
+  if (host && currentDevice !== 'tv') renderMacroEditor(currentDevice);
+}
+
+async function pressKey(devId, key){
+  if (powerState !== 'active'){
+    const st = await refreshPower(true);
+    if (st !== 'active'){
+      if (!(await ensurePowerOn())) return false;
+    }
+  }
+  return send(devId, key);
+}
+
+function buildPanels(){
+  const c = document.getElementById('panels');
+  c.innerHTML =
+      '<div class="card" id="macroCard"><h2>選択中の機器の操作</h2>'
+    + '<div class="grid g2">'
+    + '<button class="k accent" data-macrobtn data-macro="__cur">この機器のホームを開く</button>'
+    + '<button class="k danger hidden" data-abortbtn>停止</button>'
+    + '</div>'
+    + '<details id="macroEditWrap" style="margin-top:10px"><summary class="note" style="cursor:pointer">機器選択マクロを編集</summary>'
+    + '<div id="macroEditHost" style="margin-top:8px"></div></details></div>'
+    + buildRemote();
+
+  c.onclick = e=>{
+    const m = e.target.closest('[data-macro]');
+    if (m){
+      const id = (m.dataset.macro === '__cur') ? currentDevice : m.dataset.macro;
+      if (id === 'tv'){ pressKey('tv','Home'); return; }   // TVは単一キーでホームに行ける
+      runMacro(id).then(refreshCurrentInput);
+      return;
+    }
+    if (e.target.closest('[data-abortbtn]')){ macroAbort = true; return; }
+    const b = e.target.closest('[data-key]'); if (!b || b.disabled) return;
+    const key = b.dataset.key;
+
+    if (key === '__power'){ tvPowerToggle(); return; }
+    if (key === 'Home' && currentDevice !== 'tv'){ runMacro(currentDevice); return; }
+    pressKey(currentDevice, key);
+  };
+
+  renderAllCodes();
+  renderMacroEditor('fbw1100');
+  updateMacroCard();
+  refreshAvailability();
+}
+
+/** 上のセクションに出していない残りのコードを全部ボタンにする */
+function renderAllCodes(){
+  const host = document.getElementById('allCodes');
+  if (!host) return;
+  const placed = new Set(Array.from(document.querySelectorAll('#panels [data-key]')).map(b=>b.dataset.key));
+  const rest = allCodeNames().filter(n=>!placed.has(n));
+  host.innerHTML = '<div class="grid g3">'
+    + rest.map(n=>btn(n, n, 'sm')).join('') + '</div>'
+    + '<p class="note" style="margin-top:8px">' + rest.length + ' 件。実機リモコンに無いコードも含みます。</p>';
+}
+
+/** コード未取得のボタンをグレーアウト */
+function refreshAvailability(){
+  document.querySelectorAll('[data-key]').forEach(b=>{
+    const k = b.dataset.key;
+    if (k === '__power') return;
+    const ok = !!codeOf(k);
+    b.classList.toggle('na', !ok);
+    b.title = ok ? k : k + ' : コード未取得（設定→コード表を同期）';
+  });
+}
+
+function renderMacroEditor(devId){
+  const host = document.getElementById('macroEditHost');
+  if (!host) return;
+  const steps = getMacro(devId);
+  const names = allCodeNames();
+  let h = '';
+  steps.forEach((s,i)=>{
+    h += '<div class="macro-row">'
+      +  (s.sel
+          ? '<input type="text" value="機器選択: ' + s.sel + '" readonly title="' + s.sel + '">'
+          : '<select data-mi="' + i + '" data-mf="key">'
+            + names.map(n=>'<option' + (n===s.key?' selected':'') + '>' + n + '</option>').join('')
+            + (names.indexOf(s.key)<0 ? '<option selected>' + s.key + '</option>' : '')
+            + '</select>')
+      +  '<input type="number" min="0" max="10000" step="100" value="' + s.wait + '" data-mi="' + i + '" data-mf="wait">'
+      +  '<button data-mdel="' + i + '">✕</button></div>';
+  });
+  h += '<div class="row" style="margin-top:6px">'
+    +  '<button class="k sm" data-madd>ステップ追加</button>'
+    +  '<button class="k sm" data-mreset>既定に戻す</button></div>'
+    +  '<p class="note" style="margin-top:8px">実機手順「入力切替 → レコーダー選択 → 視聴中メニュー → メニュー → ホーム」に合わせて、'
+    +  'Down / Confirm などのステップを追記できます。コード未取得のキーは送信されずスキップされます。</p>';
+  host.innerHTML = h;
+
+  host.onchange = e=>{
+    const t = e.target;
+    if (t.dataset.mi !== undefined){
+      const i = +t.dataset.mi;
+      if (t.dataset.mf === 'key') steps[i].key = t.value;
+      else steps[i].wait = Math.max(0, +t.value || 0);
+      saveCfg();
+    }
+  };
+  host.onclick = e=>{
+    const del = e.target.closest('[data-mdel]');
+    if (del){ steps.splice(+del.dataset.mdel,1); saveCfg(); renderMacroEditor(devId); return; }
+    if (e.target.closest('[data-madd]')){ steps.push({key:'Confirm', wait:800}); saveCfg(); renderMacroEditor(devId); return; }
+    if (e.target.closest('[data-mreset]')){ cfg.macros[devId] = defaultMacro(devId); saveCfg(); renderMacroEditor(devId); return; }
+  };
+}
+
+/* ============================================================
+   [H] LOG
+   ============================================================ */
+const logEl = document.getElementById('log');
+const logBuf = [];
+function log(kind, msg){
+  const d = new Date();
+  const ts = '[' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0')
+           + ':' + String(d.getSeconds()).padStart(2,'0') + '] ';
+  const line = ts + msg;
+  logBuf.push(line);
+  if (logBuf.length > 300) logBuf.shift();
+  const div = document.createElement('div');
+  div.className = 'l-' + kind;
+  div.textContent = line;
+  logEl.appendChild(div);
+  while (logEl.childNodes.length > 300) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop = logEl.scrollHeight;
+
+  // 設定モーダルを開いている間は、背面のログが見えないので中にも出す
+  const m = document.getElementById('modal'), t = document.getElementById('testOut');
+  if (m && t && m.classList.contains('open')){
+    const d2 = div.cloneNode(true);
+    t.appendChild(d2);
+    if (t.childNodes.length === 1) t.scrollIntoView({block:'nearest'});  // 結果欄まで自動スクロール
+    t.scrollTop = t.scrollHeight;
+  }
+}
+function clearTestOut(){ const t = document.getElementById('testOut'); if (t) t.innerHTML = ''; }
+document.getElementById('btnLogClear').onclick = ()=>{ logEl.innerHTML=''; logBuf.length=0; };
+document.getElementById('btnLogCopy').onclick = ()=>{
+  const txt = logBuf.join('\n');
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(()=>log('in','ログをコピーしました'),()=>log('wn','コピーできませんでした'));
+  else log('wn','このブラウザではコピーできません');
+};
+
+/* ============================================================
+   [I] 設定モーダル
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const modal = $('modal');
+
+let formFilled = false;   // 設定フォームがcfgの内容で初期化済みか
+function fillSettings(){
+  $('cfgIp').value = cfg.ip; $('cfgPsk').value = cfg.psk; $('cfgPath').value = cfg.irccPath;
+  $('cfgMode').value = cfg.mode; $('cfgProxy').value = cfg.proxy;
+  $('cfgInterval').value = cfg.minInterval; $('cfgWol').value = cfg.wolEndpoint;
+
+  const f = cfg.devices.fbw1100, w = cfg.devices.ew500;
+  $('fbwHdmi').value = f.hdmi; $('fbwMac').value = f.mac; $('fbwIp').value = f.ip; $('fbwCec').value = f.cecUri || '';
+  $('ewHdmi').value  = w.hdmi; $('ewMac').value  = w.mac; $('ewIp').value  = w.ip; $('ewCec').value  = w.cecUri || '';
+
+  formFilled = true;
+  const st = storageCheck();
+  const saved = (()=>{ try{ return !!localStorage.getItem(CFG_KEY); }catch(e){ return false; } })();
+  $('storeNote').innerHTML = st.ok
+    ? ('このブラウザの保存領域は<b>利用できます</b>。現在の保存データ: ' + (saved ? '<b>あり</b>' : 'なし'))
+    : ('<b style="color:#ffcf7a">このブラウザはこのページの保存領域を許可していません</b>（' + st.why
+       + '）。「保存」を押しても次回に残りません。下の書き出し／読み込みを使ってください。');
+  renderCodeTable();
+}
+function readSettings(){
+  // フォーム未初期化のまま呼ばれると空文字でcfgを上書きしてしまう
+  if (!formFilled){ log('wn','設定フォームが未初期化のため readSettings() を中止しました'); return false; }
+  cfg.ip = $('cfgIp').value.trim();
+  cfg.psk = $('cfgPsk').value;
+  cfg.irccPath = $('cfgPath').value.trim() || '/sony/ircc';
+  cfg.mode = $('cfgMode').value;
+  cfg.proxy = $('cfgProxy').value.trim();
+  cfg.minInterval = Math.max(0, +$('cfgInterval').value || 0);
+  cfg.wolEndpoint = $('cfgWol').value.trim();
+
+  if (cfg.mode === 'proxy' && !cfg.proxy){
+    cfg.mode = 'direct';
+    log('wn','プロキシURLが空のため、通信方式を direct に戻しました');
+  }
+  const f = cfg.devices.fbw1100, w = cfg.devices.ew500;
+  f.hdmi = $('fbwHdmi').value; f.mac = $('fbwMac').value.trim(); f.ip = $('fbwIp').value.trim();
+  w.hdmi = $('ewHdmi').value;  w.mac = $('ewMac').value.trim();  w.ip = $('ewIp').value.trim();
+  const fc = $('fbwCec').value.trim(), wc = $('ewCec').value.trim();
+  if (fc !== f.cecUri){ f.cecUri = fc; if (cfg.macros) delete cfg.macros.fbw1100; }
+  if (wc !== w.cecUri){ w.cecUri = wc; if (cfg.macros) delete cfg.macros.ew500; }
+}
+
+function renderCodeTable(){
+  const names = allCodeNames();
+  $('codeSrcNote').textContent =
+    cfg.codeSource === 'synced'
+      ? 'TVから同期済み（' + names.length + '件）。値は個別に編集できます。'
+      : '内蔵フォールバック（仕様書の確認済み33コード）を使用中。「コード表を同期」でTVから正式な一覧を取得できます。';
+  $('codeTable').innerHTML = names.map(n=>
+    '<tr><td>' + n + '</td><td><input type="text" data-code="' + n + '" value="' + (codeOf(n)||'') + '"></td></tr>'
+  ).join('');
+}
+$('codeTable').addEventListener('change', e=>{
+  const i = e.target.closest('[data-code]'); if (!i) return;
+  const v = i.value.trim();
+  if (v) cfg.codes[i.dataset.code] = v; else delete cfg.codes[i.dataset.code];
+  saveCfg(); refreshAvailability();
+});
+
+$('btnDetect').onclick = async ()=>{
+  readSettings(); saveCfg(); clearTestOut();
+  try{
+    const list = await listInputs();
+    const cec = list.filter(i=>/^extInput:cec/.test(i.uri));
+    const oth = list.filter(i=>!/^extInput:cec/.test(i.uri));
+    log('in','── CEC機器 (' + cec.length + '件) ──');
+    cec.forEach(i=> log(i.connection ? 'ok' : 'wn', '  ' + (i.title || '(無題)') + '  ' + i.uri));
+    log('in','── 外部入力 ──');
+    oth.forEach(i=> log(i.connection ? 'ok' : 'in', '  ' + (i.title || '') + ' : ' + (i.connection ? '接続あり' : '接続なし')));
+    const cur = await currentInput();
+    if (cur) log('in','現在の入力: ' + (cur.title || cur.uri));
+  }catch(e){ log('ng','検出に失敗: ' + describeError(e)); }
+};
+
+$('btnPvr').onclick = async ()=>{
+  readSettings(); saveCfg(); clearTestOut();
+  for (const k of ['fbw1100','ew500']){
+    const ip = cfg.devices[k].ip;
+    const name = (k==='fbw1100'?'BDZ-FBW1100':'BDZ-EW500') + ' (' + ip + ':' + PVR_PORT + ')';
+    if (!ip){ log('wn', name + ' IP未設定'); continue; }
+    try{
+      const r = await pvrCall(ip, 'X_GetFirmwareVersion');   // 読み取り専用
+      if (r.ok) log('ok', name + ' X_PvrControl 応答 HTTP ' + r.status + ' → 直接制御の可能性あり');
+      else if (r.status === 403) log('wn', name + ' HTTP 403 → この端末は未登録。レコーダーの「設定→通信設定→リモート機器設定」で登録が必要');
+      else log('ng', name + ' HTTP ' + r.status);
+    }catch(e){ log('ng', name + ' ' + describeError(e)); }
+  }
+};
+
+$('btnSettings').onclick = ()=>{ fillSettings(); modal.classList.add('open'); };
+$('btnClose').onclick = ()=> modal.classList.remove('open');
+modal.addEventListener('click', e=>{ if (e.target === modal) modal.classList.remove('open'); });
+
+$('btnSave').onclick = ()=>{
+  readSettings(); saveCfg();
+  log('in','設定を保存しました');
+  buildPanels();
+  modal.classList.remove('open');
+  refreshPower(true);
+};
+
+$('btnTest').onclick = async ()=>{
+  readSettings(); saveCfg(); clearTestOut();
+  log('in','── 接続テスト開始 ──');
+  log('in','宛先: ' + proxied('http://' + cfg.ip + '/sony/system') + ' (方式: ' + cfg.mode + ')');
+  const st = await refreshPower(false);
+  if (st){
+    log('ok','REST疎通OK');
+    await showInputs();
+    log('in','※ IRCC送信にはPSKが必要です（/sony/ircc はPSKなしだと403）');
+  } else {
+    log('wn','失敗した場合の確認点: ①TVの「IPコントロール」が「認証:事前共有キー」でPSK一致 ②TVの電源/ネットワーク待機 ③ページをhttpsで開いていないか（混在コンテンツ） ④IP誤り');
+  }
+};
+
+/** HDMI入力の接続状況を表示（どのポートに機器が繋がっているか） */
+async function showInputs(){
+  try{
+    const r = await rest('getCurrentExternalInputsStatus', [], '1.0', 'avContent');
+    const list = (r && r[0]) || [];
+    list.filter(i=>/hdmi/.test(i.uri)).forEach(i=>{
+      log(i.connection ? 'ok' : 'in', '  ' + i.title + ' : ' + (i.connection ? '接続あり' : '接続なし')
+        + (i.label ? ' [' + i.label + ']' : ''));
+    });
+  }catch(e){ log('wn','入力状態の取得に失敗: ' + describeError(e)); }
+}
+
+async function doSync(fromUi){
+  if (fromUi){ readSettings(); saveCfg(); clearTestOut(); }
+  try{
+    const r = await rest('getRemoteControllerInfo');
+    const list = Array.isArray(r) ? (r.find(x=>Array.isArray(x)) || []) : [];
+    if (!list.length) throw new Error('コード一覧が空でした');
+    // 内蔵表と同じ値は保存しない（差分だけをlocalStorageに残す）
+    let n = 0, diff = 0;
+    list.forEach(c=>{
+      if (!c || !c.name || !c.value) return;
+      n++;
+      if (c.value !== FALLBACK_CODES[c.name]){ cfg.codes[c.name] = c.value; diff++; }
+      else delete cfg.codes[c.name];
+    });
+    cfg.codeSource = 'synced';
+    saveCfg(); renderCodeTable(); refreshAvailability();
+    renderMacroEditor(currentDevice === 'tv' ? 'fbw1100' : currentDevice);
+    log('ok','コード表を同期しました（' + n + '件 / 内蔵表との差分 ' + diff + '件を保存）');
+  }catch(e){
+    log('ng','コード同期に失敗: ' + describeError(e) + ' / 内蔵の146コードを使用します');
+  }
+}
+$('btnSync').onclick = ()=> doSync(true);
+
+/* --- 設定のエクスポート / インポート（localStorageが使えない環境の保険） --- */
+$('btnExport').onclick = ()=>{
+  readSettings(); saveCfg();
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bravia-remote-settings.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  log('ok','設定を bravia-remote-settings.json に書き出しました');
+};
+$('btnImport').onclick = ()=> $('fileIn').click();
+$('fileIn').onchange = e=>{
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = ()=>{
+    try{
+      cfg = deepMerge(DEFAULT_CFG, JSON.parse(fr.result));
+      saveCfg();
+      fillSettings(); buildPanels();
+      log('ok','設定をファイルから読み込みました (' + f.name + ')');
+      refreshPower(true);
+    }catch(err){ log('ng','読み込み失敗: ' + err.message); }
+  };
+  fr.readAsText(f);
+  e.target.value = '';
+};
+
+$('btnCopyHelper').onclick = ()=>{
+  const txt = $('helperSrc').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(
+    ()=>log('in','ヘルパースクリプトをコピーしました（bravia-helper.ps1 として保存してください）'),
+    ()=>log('wn','コピーできませんでした'));
+  else log('wn','このブラウザではコピーできません');
+};
+
+/* ============================================================
+   [J] 起動
+   ============================================================ */
+buildTabs();
+buildPanels();
+// 起動時は見た目だけTVを選択状態にする（コマンドは一切送らない）
+document.querySelector('#tabs button[data-sel="tv"]').classList.add('sel');
+fillSettings();   // フォームをcfgの値で初期化（空フォームによる上書きを防ぐ）
+log('in','BRAVIA / BDZ Web Remote 起動');
+(function(){
+  const st = storageCheck();
+  log(st.ok ? 'in' : 'ng', '保存領域: ' + (st.ok ? '利用可能' : '利用不可 (' + st.why + ')'));
+  log(loadReport.kind, '読み込み: ' + loadReport.msg);
+})();
+if (location.protocol === 'https:')
+  log('wn','httpsで開いています。ローカル機器へのhttp通信はブラウザにブロックされます。file:// かローカルhttpで開いてください。');
+
+if (!cfg.ip){
+  log('wn','TVのIPアドレスが未設定です。右上「設定」から入力してください。');
+  fillSettings(); modal.classList.add('open');
+}else{
+  log('in','TV: ' + cfg.ip + ' / 方式: ' + cfg.mode + (cfg.mode==='proxy' ? ' (' + cfg.proxy + ')' : ''));
+  refreshPower(false).then(st=>{ if (st){ doSync(false); refreshCurrentInput(); } });
+}
+</script>
+</body>
+</html>
